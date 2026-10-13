@@ -1,0 +1,26 @@
+;; inga-side oracle for the wallet's Kotoba L1 driver: run the REAL
+;; inga.writer over records the wallet signed, with a real Ed25519 verify-fn
+;; (node:crypto). Reads {chain, policy:{ref:[did]}, pubkeys:{did:hex}, records:[...]}
+;; on argv[0], prints [{signing-text, refusal}] as JSON.
+(ns inga-writer-oracle
+  (:require [inga.writer :as w]
+            ["node:crypto" :as nc]
+            ["node:fs" :as fs]))
+
+(defn- verify-fn [pubkeys]
+  (fn [writer text sig]
+    (if-let [hex (get pubkeys writer)]
+      (let [k (nc/createPublicKey #js {:key (js/Buffer.concat #js [(js/Buffer.from #js [0x30 0x2a 0x30 0x05 0x06 0x03 0x2b 0x65 0x70 0x03 0x21 0x00])
+                                                                     (js/Buffer.from hex "hex")])
+                                       :format "der" :type "spki"})]
+        (nc/verify nil (js/Buffer.from text "utf8") k (js/Buffer.from sig "base64")))
+      false)))
+
+(let [in (js->clj (js/JSON.parse (fs/readFileSync (aget js/process.argv (- (.-length js/process.argv) 1)) "utf8")))
+      chain (get in "chain")
+      policy (into {} (map (fn [[k v]] [k (set v)])) (get in "policy"))
+      vf (verify-fn (get in "pubkeys"))]
+  (println (js/JSON.stringify
+            (clj->js (for [r (get in "records")]
+                       {:signing-text (w/signing-text chain r)
+                        :refusal (some-> (w/refusal policy chain vf r) name)})))))

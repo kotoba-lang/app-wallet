@@ -10,6 +10,7 @@ import * as evm from '../core/evm.js';
 import * as ks from '../core/keystore.js';
 import * as net from '../core/networks.js';
 import * as utxo from '../core/utxo.js';
+import * as inga from '../core/inga.js';
 import * as store from './store.js';
 import { t } from './i18n.js';
 
@@ -18,6 +19,7 @@ const IDLE_LOCK_MS = 5 * 60 * 1000;
 const state = {
   vault: null, accounts: null, prefs: store.loadPrefs(),
   balances: {}, prices: {}, errors: {}, draft: null,
+  inga: null, // public Kotoba L1 identity {path, did, publicHex} while unlocked
 };
 
 // ── tiny DOM helper (text only — no user data ever goes through innerHTML) ──
@@ -53,6 +55,7 @@ async function withSecret(passcode, f) {
 }
 function deriveAccounts(mnemonic) {
   const r = d.rootFromMnemonic(mnemonic);
+  state.inga = inga.publicIdentity(inga.ingaIdentity(mnemonic));
   return d.implemented().map((c) => d.account(r, c));
 }
 
@@ -168,6 +171,11 @@ function home() {
       h('section', { class: 'hero' }, h('small', {}, t.total), h('div', { class: 'total' }, fmtFiat(total)),
         h('button', { class: 'chip', onclick: refresh }, '↻ ' + t.refresh)),
       h('h2', {}, t.assets), h('ul', { class: 'list' }, rows),
+      h('h2', {}, t.kotobaL1),
+      h('ul', { class: 'list' }, h('li', {}, h('button', { class: 'row', onclick: ingaScreen },
+        h('span', { class: 'sym' }, '言'),
+        h('span', { class: 'grow' }, h('b', {}, 'Kotoba L1 (inga)'), h('small', {}, t.ingaRowHint)),
+        h('span', { class: 'amt' }, h('small', {}, state.inga ? `${state.inga.did.slice(8, 20)}…` : ''))))),
       h('details', {}, h('summary', {}, `${t.comingSoon} (${soon.length})`), h('p', { class: 'muted' }, t.comingSoonHint),
         h('ul', { class: 'list' }, soon)),
       h('p', { class: 'muted tiny' }, t.priceSource)));
@@ -184,7 +192,7 @@ async function refresh() {
     ...accts.map((a) => net.balance(a)
       .then((b) => { state.balances[a.chain] = b; delete state.errors[a.chain]; })
       .catch((e) => { state.errors[a.chain] = e.message; })),
-  ]).finally(() => { refreshing = null; if (state.accounts && current === home) home(); });
+  ]).finally(() => { refreshing = null; if (state.accounts && current === home) { const y = window.scrollY; home(); window.scrollTo(0, y); } });
   return refreshing;
 }
 
@@ -365,6 +373,124 @@ function utxoReview(acct, d0) {
     h('button', { class: 'secondary', onclick: () => asset(acct) }, t.cancel)));
 }
 
+// ── Kotoba L1 (inga) ───────────────────────────────────────────────────────
+// inga has no balances: what this identity owns is the right to advance refs
+// whose writer policy names its did:key. Writing = sign an inga.ref-record/v2
+// record for the next sequence and submit it; the quorum's first committed
+// record per sequence wins.
+const ingaPrefs = () => (state.prefs.inga ??= { node: '', refs: [] });
+const kvRow = (k, v) => h('div', { class: 'kv' }, h('span', {}, k), h('b', {}, v));
+
+function ingaScreen() {
+  const p = ingaPrefs();
+  const toast = h('p', { class: 'toast', 'aria-live': 'polite' });
+  const node = h('input', { value: p.node, ...latin, placeholder: 'https://inga.example:19401' });
+  const status = h('div');
+  const check = h('button', { class: 'secondary', onclick: async () => {
+    p.node = node.value.trim(); store.savePrefs(state.prefs);
+    busy(check, true);
+    try {
+      const hl = await net.ingaNode.health(p.node);
+      status.replaceChildren(h('section', { class: 'card' },
+        kvRow(t.chainId, hl['chain-id']), kvRow(t.witness, hl.witness),
+        kvRow(t.heights, `${hl['committed-height']} / ${hl.height}`), kvRow(t.faultModel, hl['fault-model'] ?? '—')));
+    } catch (x) { status.replaceChildren(err(x.message)); }
+    busy(check, false);
+  } }, t.checkNode);
+  const lookup = h('input', { ...latin, placeholder: 'ref' });
+  const found = h('div');
+  const look = h('button', { class: 'secondary', onclick: async () => {
+    busy(look, true);
+    try { found.replaceChildren(await headCard(p.node, lookup.value.trim())); } catch (x) { found.replaceChildren(err(x.message)); }
+    busy(look, false);
+  } }, t.lookup);
+  show(header('Kotoba L1 (inga)', home), h('main', {},
+    h('p', { class: 'muted' }, t.ingaIntro),
+    h('h2', {}, t.identity),
+    h('div', { class: 'addr' }, h('code', {}, state.inga.did),
+      h('button', { class: 'chip', onclick: async () => { toast.textContent = (await store.copyText(state.inga.did)) ? t.copied : ''; } }, t.copy)),
+    h('p', { class: 'muted tiny' }, `Ed25519 · SLIP-0010 ${state.inga.path}`), toast,
+    h('h2', {}, t.node), h('label', { class: 'field' }, t.nodeUrl, node), check, status,
+    h('button', { class: 'primary', onclick: () => ingaWriteForm() }, t.writeRef),
+    h('h2', {}, t.lookupRef), lookup, look, found,
+    p.refs.length ? h('h2', {}, t.myRefs) : null,
+    p.refs.length ? h('ul', { class: 'list' }, p.refs.map((r) => h('li', {}, h('button', { class: 'row', onclick: async () => {
+      lookup.value = r; look.click();
+    } }, h('span', { class: 'grow' }, h('b', {}, r)))))) : null));
+}
+
+async function headCard(url, ref) {
+  const [{ head }, hl] = await Promise.all([net.ingaNode.head(url, ref), net.ingaNode.health(url)]);
+  if (!head) return h('p', { class: 'muted' }, t.emptyRef);
+  const chain = hl['chain-id'];
+  const signed = head.writer && head.sig;
+  const verdict = !signed ? t.unsignedRecord : inga.verifyRecord(chain, head) ? t.sigOk(head.writer === state.inga?.did) : t.sigBad;
+  return h('section', { class: 'card' }, kvRow('ref', head.ref), kvRow('seq', String(head.seq)), kvRow('cid', head.cid),
+    kvRow('prev', head.prev ?? '—'), kvRow(t.writer, head.writer ?? '—'), kvRow(t.signature, verdict));
+}
+
+function ingaWriteForm(draft = {}) {
+  const p = ingaPrefs();
+  const ref = h('input', { value: draft.ref ?? '', ...latin, placeholder: 'namespace/name' });
+  const cid = h('input', { value: draft.cid ?? '', ...latin, placeholder: 'bafy…' });
+  const msg = h('div');
+  const btn = h('button', { class: 'primary', onclick: async () => {
+    if (!p.node) return msg.replaceChildren(err(t.needNode));
+    busy(btn, true);
+    try {
+      const [hl, { head }] = await Promise.all([net.ingaNode.health(p.node), net.ingaNode.head(p.node, ref.value.trim())]);
+      for (const [n, v] of [['ref', ref.value.trim()], ['cid', cid.value.trim()]]) if (!v || /[\r\n\0]/.test(v)) throw new Error(`${n}: ${t.badField}`);
+      ingaReview({ ref: ref.value.trim(), cid: cid.value.trim(), chainId: hl['chain-id'], head });
+    } catch (x) { msg.replaceChildren(err(x.message)); busy(btn, false); }
+  } }, t.review);
+  show(header(t.writeRef, ingaScreen), h('main', {},
+    h('p', { class: 'muted' }, t.writeRefHint),
+    h('label', { class: 'field' }, 'ref', ref), h('label', { class: 'field' }, 'cid', cid), msg, btn));
+}
+
+function ingaReview(w) {
+  const p = ingaPrefs();
+  const pass = h('input', { type: 'password', autocomplete: 'current-password' });
+  const msg = h('div');
+  const seq = w.head ? Number(w.head.seq) + 1 : 0;
+  const btn = h('button', { class: 'danger', onclick: async () => {
+    busy(btn, true);
+    try {
+      const rec = await withSecret(pass.value, (m) => {
+        const id = inga.ingaIdentity(m);
+        if (id.did !== state.inga.did) throw new Error('identity mismatch');
+        return inga.signRecord({ chainId: w.chainId, ref: w.ref, cid: w.cid, head: w.head, identity: id });
+      });
+      await net.ingaNode.submit(p.node, rec);
+      if (!p.refs.includes(w.ref)) { p.refs.unshift(w.ref); p.refs = p.refs.slice(0, 20); store.savePrefs(state.prefs); }
+      msg.replaceChildren(h('p', { class: 'muted' }, t.waitingQuorum));
+      let result = 'pending', head = null;
+      for (let i = 0; i < 30 && result === 'pending'; i++) {
+        await new Promise((r) => setTimeout(r, 1000));
+        ({ head } = await net.ingaNode.head(p.node, w.ref));
+        result = inga.outcome(rec, head);
+      }
+      ingaResult(w, rec, result, head);
+    } catch (x) { msg.replaceChildren(err(x instanceof ks.WrongPasscode ? t.wrongPass : x.message)); busy(btn, false); }
+  } }, t.signSubmit);
+  show(header(t.reviewRecord, () => ingaWriteForm(w)), h('main', {},
+    h('section', { class: 'card' }, kvRow(t.chainId, w.chainId), kvRow('ref', w.ref), kvRow('seq', String(seq)),
+      kvRow('prev', w.head?.cid ?? '—'), kvRow('cid', w.cid), kvRow(t.writer, state.inga.did)),
+    h('p', { class: 'muted tiny' }, t.firstWins),
+    h('label', { class: 'field' }, t.confirmPass, pass), msg, btn,
+    h('button', { class: 'secondary', onclick: ingaScreen }, t.cancel)));
+}
+
+function ingaResult(w, rec, result, head) {
+  const ok = result === 'committed';
+  show(header(t.ingaOutcome[result] ?? result), h('main', { class: 'center' },
+    h('div', { class: ok ? 'logo ok' : 'logo' }, ok ? '✓' : '!'),
+    h('p', {}, t.ingaOutcomeHint[result] ?? ''),
+    h('section', { class: 'card' }, kvRow('ref', w.ref), kvRow('seq', String(rec.seq)), kvRow('cid', rec.cid),
+      head ? kvRow(t.headNow, `seq ${head.seq} · ${head.writer === rec.writer ? t.you : (head.writer ?? '—')}`) : null),
+    h('button', { class: 'primary', onclick: ingaScreen }, t.done)));
+}
+
 // ── settings ───────────────────────────────────────────────────────────────
 function settings() {
   const sel = h('select', { onchange: () => { state.prefs.fiat = sel.value; store.savePrefs(state.prefs); state.prices = {}; refresh(); } },
@@ -386,13 +512,13 @@ function settings() {
     h('details', {}, h('summary', {}, t.reset), h('p', { class: 'warn' }, t.resetConfirm), confirm,
       h('button', { class: 'danger', onclick: async () => {
         if (confirm.value !== 'DELETE') return;
-        await store.deleteVault(); Object.assign(state, { vault: null, accounts: null, balances: {} }); welcome();
+        await store.deleteVault(); Object.assign(state, { vault: null, accounts: null, inga: null, balances: {} }); welcome();
       } }, t.reset)),
     h('p', { class: 'muted tiny' }, t.storage(store.vaultBackend())),
-    h('p', { class: 'muted tiny' }, 'Kotoba Wallet 0.2.0 · kotoba-lang/wallet · kotoba-shell')));
+    h('p', { class: 'muted tiny' }, 'Kotoba Wallet 0.3.0 · kotoba-lang/wallet · kotoba-shell')));
 }
 
-function lock() { state.accounts = null; state.balances = {}; unlock(); }
+function lock() { state.accounts = null; state.inga = null; state.balances = {}; unlock(); }
 
 // ── lifecycle ──────────────────────────────────────────────────────────────
 let idle;

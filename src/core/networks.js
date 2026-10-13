@@ -172,3 +172,21 @@ export const txExplorerUrl = (chain, txid) =>
     : chain === 'btc' ? `https://mempool.space/tx/${txid}`
     : chain === 'ltc' ? `https://litecoinspace.org/tx/${txid}`
     : chain === 'doge' ? `https://blockchair.com/dogecoin/transaction/${txid}` : '#';
+
+// ── Kotoba L1 (inga-node) ──────────────────────────────────────────────────
+// There is no public inga endpoint; the node URL is the user's setting.
+const ingaBase = (url) => {
+  const u = new URL(url);
+  if (!/^https?:$/.test(u.protocol)) throw new Error('inga node URL must be http(s)');
+  return u.origin + u.pathname.replace(/\/$/, '');
+};
+export const ingaNode = {
+  health: (url) => request(`${ingaBase(url)}/health`),
+  head: async (url, ref) => {
+    const j = await request(`${ingaBase(url)}/committed?ref=${encodeURIComponent(ref)}`);
+    return { head: j.head ?? null, proof: j.proof ?? null, records: j.records };
+  },
+  submit: (url, record) => request(`${ingaBase(url)}/submit`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ record }),
+  }),
+};

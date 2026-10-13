@@ -79,6 +79,43 @@ chain-id はレジストリから注入し、不一致なら拒否する。宛�
 
 TRON の送金は非対応のまま (raw-data protobuf が未実装)。
 
+### 6. Kotoba L1 (inga) ドライバ (v0.3)
+
+inga は残高を持つチェーンではない。順序付けるのは head record (「ref R の sequence S は CID C を指す」) で、
+2f+1 quorum が compare-and-set になる (`inga.ref/project`: 各 [ref seq] で最初に確定した記録が勝つ)。
+ネイティブ資産は無い (ENGI/EN を inga 上で動かすのは engi の README で future work とされている)。
+したがってウォレットが inga 上で持つのは **残高ではなく writer の ID** になる。`src/core/inga.js`:
+
+- **ID**: 同じ BIP-39 seed から SLIP-0010 (ed25519、全階層 hardened) で Ed25519 鍵を導出し、did:key
+  (multicodec 0xed01 + base58btc。kagi / kotoba-lang/ed25519 と同じ形) で表す。
+  パスは `m/7040884'/0'/0'` (0x6b6f74 = "kot")。Kotoba には SLIP-44 の coin type が登録されておらず、
+  他のチェーンの番号を借りると衝突するため、独自の purpose 階層にした。**暫定**:
+  ID そのものを決める値なので、変えるなら vault の移行とセットで行う。
+- **記録**: `inga.head/v1` のフィールドに `writer` と `sig` を加える。`sig` は `inga.writer/signing-text`
+  (`inga.ref-record/v2`: chain id と全フィールド) に対する Ed25519 署名を base64 にしたもの。
+  inga 自体は署名のエンコードを決めていない (verify-fn を注入する方式) ため、inga-node の witness
+  署名と同じ base64 を採った。ref / cid / chain id に改行が入った場合は拒否する。署名対象の text は
+  改行区切りなので、改行を許すと別の記録の text に見せかけられるため。
+- **通信**: inga-node HTTP (`GET /health`, `GET /committed?ref=`, `POST /submit`)。ノード URL はユーザーが
+  設定する (公開ノードは無い)。提出後は head を最大 30 秒ポーリングし、結果を
+  committed / lost (同じ seq を他の記録に取られた) / superseded / pending のどれかで表示する。
+- **ライブラリ表 (wallet.chains) には入れない**。inga は EVM でも UTXO でもなく、アドレスと残高の
+  モデルに当てはまらないため、アプリ側の別の画面として扱う。
+
+検証:
+- `inga.writer` 自身を oracle にした (`scripts/inga-oracle.mjs`: kbb 上で real な signing-text と refusal を、
+  node:crypto の Ed25519 で実行)。正常な記録は受理され、改ざん (cid / seq)、別の writer、別の chain、
+  余分なフィールドは、それぞれ inga と同じ理由で拒否される。
+- SLIP-0010 は公式テストベクタ 1 と micro-key-producer (独立実装) で照合した。
+- E2E: ローカルに inga-node を 4 プロセス起動 (quorum 3/4、chain `inga-wallet-e2e`) し、iOS
+  シミュレータのアプリから bridge http/fetch 経由で ref を書き込んだ → 4 witness すべてで確定 (proof 付き)。
+  確定した記録を real `inga.writer` に渡すと受理され、cid を変えたコピーは `bad-signature` になった。
+
+既知の制約 (inga 側):
+- inga-node は `inga.writer` のポリシーをまだ適用していない (`/submit` が要求するのは ref と cid だけ)。
+  署名はポリシーを適用する読み手が検証できるが、ノード自身は未署名の記録も受け付ける。
+- inga-node は CORS ヘッダを返さない。ネイティブアプリ (bridge) からは届くが、ブラウザ版からは届かない。
+
 ## 検証 (2026-10-13)
 
 - `npm test`: 42/42 pass (EVM / UTXO の oracle パリティ、btc-signer との一致、アドレスのネットワーク判定、コイン選択、拒否、vault)。

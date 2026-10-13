@@ -1,0 +1,111 @@
+{
+ "source": "kotoba-lang/inga e5948e1 inga.writer/signing-text + refusal (kbb, node:crypto Ed25519)",
+ "mnemonic": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+ "chain": "inga-devnet-1",
+ "identity": {
+  "path": "m/7040884'/0'/0'",
+  "did": "did:key:z6Mkg2mLPkDsUzWuXCp2X6bj1nU1UzpNkhtpTWPap3MQu4v5",
+  "publicHex": "1770f8b9557332d1e26a6c060c0b8723fa379b0fdf0e12ce6d74bd48c2028b82"
+ },
+ "cases": {
+  "genesis": {
+   "record": {
+    "v": "inga.head/v1",
+    "ref": "wallet/notes",
+    "seq": 0,
+    "cid": "bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy",
+    "prev": null,
+    "height": null,
+    "writer": "did:key:z6Mkg2mLPkDsUzWuXCp2X6bj1nU1UzpNkhtpTWPap3MQu4v5",
+    "sig": "MfmlUx3ych04Y3IzL3onEQZShN7ut/n7DRGpXMHotzreKFGIAVuxlD9UY40XKYGh8b3fFqsuOCI63Bl1mY8ICQ=="
+   },
+   "signing-text": "inga/ref-record/v2\nchain=inga-devnet-1\nref=wallet/notes\nseq=0\ncid=bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy\nprev=\nv=inga.head/v1\nheight=\n",
+   "refusal": null
+  },
+  "next": {
+   "record": {
+    "v": "inga.head/v1",
+    "ref": "wallet/notes",
+    "seq": 1,
+    "cid": "bafkreidgvpkjawlxz6sffxzwgooowe5yt7i6wsyg236mfoks77nywkptdq",
+    "prev": "bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy",
+    "height": null,
+    "writer": "did:key:z6Mkg2mLPkDsUzWuXCp2X6bj1nU1UzpNkhtpTWPap3MQu4v5",
+    "sig": "DMh0PAHV/OHiyMA+291aA1JkV5Vc0sQTKLe21LgQH6XeeaPMKuECrVAhzyJruj8v5EcFV8gdvErAKP8UXW5vBQ=="
+   },
+   "signing-text": "inga/ref-record/v2\nchain=inga-devnet-1\nref=wallet/notes\nseq=1\ncid=bafkreidgvpkjawlxz6sffxzwgooowe5yt7i6wsyg236mfoks77nywkptdq\nprev=bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy\nv=inga.head/v1\nheight=\n",
+   "refusal": null
+  },
+  "tampered-cid": {
+   "record": {
+    "v": "inga.head/v1",
+    "ref": "wallet/notes",
+    "seq": 1,
+    "cid": "bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku",
+    "prev": "bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy",
+    "height": null,
+    "writer": "did:key:z6Mkg2mLPkDsUzWuXCp2X6bj1nU1UzpNkhtpTWPap3MQu4v5",
+    "sig": "DMh0PAHV/OHiyMA+291aA1JkV5Vc0sQTKLe21LgQH6XeeaPMKuECrVAhzyJruj8v5EcFV8gdvErAKP8UXW5vBQ=="
+   },
+   "signing-text": "inga/ref-record/v2\nchain=inga-devnet-1\nref=wallet/notes\nseq=1\ncid=bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku\nprev=bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy\nv=inga.head/v1\nheight=\n",
+   "refusal": "bad-signature"
+  },
+  "tampered-seq": {
+   "record": {
+    "v": "inga.head/v1",
+    "ref": "wallet/notes",
+    "seq": 7,
+    "cid": "bafkreidgvpkjawlxz6sffxzwgooowe5yt7i6wsyg236mfoks77nywkptdq",
+    "prev": "bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy",
+    "height": null,
+    "writer": "did:key:z6Mkg2mLPkDsUzWuXCp2X6bj1nU1UzpNkhtpTWPap3MQu4v5",
+    "sig": "DMh0PAHV/OHiyMA+291aA1JkV5Vc0sQTKLe21LgQH6XeeaPMKuECrVAhzyJruj8v5EcFV8gdvErAKP8UXW5vBQ=="
+   },
+   "signing-text": "inga/ref-record/v2\nchain=inga-devnet-1\nref=wallet/notes\nseq=7\ncid=bafkreidgvpkjawlxz6sffxzwgooowe5yt7i6wsyg236mfoks77nywkptdq\nprev=bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy\nv=inga.head/v1\nheight=\n",
+   "refusal": "bad-signature"
+  },
+  "other-writer": {
+   "record": {
+    "v": "inga.head/v1",
+    "ref": "wallet/notes",
+    "seq": 1,
+    "cid": "bafkreidgvpkjawlxz6sffxzwgooowe5yt7i6wsyg236mfoks77nywkptdq",
+    "prev": "bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy",
+    "height": null,
+    "writer": "did:key:z6MkvwyvUAqMaynK8raNavDijKrAKrkcD7PpPax6qGeWyjJM",
+    "sig": "VIwBHpVBVzr8VNGi592c5ga2ubCdqW56rbFW2FCSnQ3mUlPEyBGYLbz/lgVVIYpu9eeli71Jk/KL/ewoW8V8BA=="
+   },
+   "signing-text": "inga/ref-record/v2\nchain=inga-devnet-1\nref=wallet/notes\nseq=1\ncid=bafkreidgvpkjawlxz6sffxzwgooowe5yt7i6wsyg236mfoks77nywkptdq\nprev=bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy\nv=inga.head/v1\nheight=\n",
+   "refusal": "writer-not-allowed"
+  },
+  "other-chain": {
+   "record": {
+    "v": "inga.head/v1",
+    "ref": "wallet/notes",
+    "seq": 1,
+    "cid": "bafkreidgvpkjawlxz6sffxzwgooowe5yt7i6wsyg236mfoks77nywkptdq",
+    "prev": "bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy",
+    "height": null,
+    "writer": "did:key:z6Mkg2mLPkDsUzWuXCp2X6bj1nU1UzpNkhtpTWPap3MQu4v5",
+    "sig": "KI0izYDg+FGSPbhsFmAnxk67hg6FRgO7JP2OGYkFGCUUnlpI9km49zfPDWQEITA7zUx6y95siC7f5Ff0weEJCQ=="
+   },
+   "signing-text": "inga/ref-record/v2\nchain=inga-devnet-1\nref=wallet/notes\nseq=1\ncid=bafkreidgvpkjawlxz6sffxzwgooowe5yt7i6wsyg236mfoks77nywkptdq\nprev=bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy\nv=inga.head/v1\nheight=\n",
+   "refusal": "bad-signature"
+  },
+  "extra-field": {
+   "record": {
+    "v": "inga.head/v1",
+    "ref": "wallet/notes",
+    "seq": 1,
+    "cid": "bafkreidgvpkjawlxz6sffxzwgooowe5yt7i6wsyg236mfoks77nywkptdq",
+    "prev": "bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy",
+    "height": null,
+    "writer": "did:key:z6Mkg2mLPkDsUzWuXCp2X6bj1nU1UzpNkhtpTWPap3MQu4v5",
+    "sig": "DMh0PAHV/OHiyMA+291aA1JkV5Vc0sQTKLe21LgQH6XeeaPMKuECrVAhzyJruj8v5EcFV8gdvErAKP8UXW5vBQ==",
+    "note": "x"
+   },
+   "signing-text": "inga/ref-record/v2\nchain=inga-devnet-1\nref=wallet/notes\nseq=1\ncid=bafkreidgvpkjawlxz6sffxzwgooowe5yt7i6wsyg236mfoks77nywkptdq\nprev=bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7aqa4s52zy\nv=inga.head/v1\nheight=\n",
+   "refusal": "unexpected-field"
+  }
+ }
+}
