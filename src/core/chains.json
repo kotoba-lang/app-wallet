@@ -1,0 +1,169 @@
+{
+ "source": "kotoba-lang/wallet (JVM, wallet.chain/account + sign-tx)",
+ "chains": {
+  "ada": {
+   "family": "cardano",
+   "symbol": "ADA",
+   "name": "Cardano",
+   "coin-type": 1815,
+   "status": "planned",
+   "needs": "ed25519-bip32 (CIP-3) — NONSTANDARD derivation; use a reviewed impl, do not self-implement"
+  },
+  "apt": {
+   "family": "ed25519",
+   "symbol": "APT",
+   "name": "Aptos",
+   "coin-type": 637,
+   "status": "planned",
+   "needs": "SLIP-0010 ed25519 + sha3-256 single-key auth-key address"
+  },
+  "arbitrum": {
+   "family": "evm",
+   "symbol": "ETH",
+   "name": "Arbitrum One",
+   "coin-type": 60,
+   "chain-id": 42161
+  },
+  "atom": {
+   "family": "cosmos",
+   "symbol": "ATOM",
+   "name": "Cosmos Hub",
+   "coin-type": 118,
+   "status": "external",
+   "owner": "kotoba-lang/saifu"
+  },
+  "avalanche": {
+   "family": "evm",
+   "symbol": "AVAX",
+   "name": "Avalanche C-Chain",
+   "coin-type": 60,
+   "chain-id": 43114
+  },
+  "base": {
+   "family": "evm",
+   "symbol": "ETH",
+   "name": "Base",
+   "coin-type": 60,
+   "chain-id": 8453
+  },
+  "bch": {
+   "family": "utxo",
+   "symbol": "BCH",
+   "name": "Bitcoin Cash",
+   "coin-type": 145,
+   "network": "bitcoin-cash",
+   "receive-only?": true
+  },
+  "bnb": {
+   "family": "evm",
+   "symbol": "BNB",
+   "name": "BNB Smart Chain",
+   "coin-type": 60,
+   "chain-id": 56
+  },
+  "btc": {
+   "family": "utxo",
+   "symbol": "BTC",
+   "name": "Bitcoin",
+   "coin-type": 0,
+   "network": "mainnet"
+  },
+  "doge": {
+   "family": "utxo",
+   "symbol": "DOGE",
+   "name": "Dogecoin",
+   "coin-type": 3,
+   "network": "dogecoin"
+  },
+  "dot": {
+   "family": "substrate",
+   "symbol": "DOT",
+   "name": "Polkadot",
+   "coin-type": 354,
+   "status": "planned",
+   "needs": "sr25519 (schnorrkel) + SS58 — NONSTANDARD curve usage; use a reviewed impl, do not self-implement"
+  },
+  "eth": {
+   "family": "evm",
+   "symbol": "ETH",
+   "name": "Ethereum",
+   "coin-type": 60,
+   "chain-id": 1
+  },
+  "ltc": {
+   "family": "utxo",
+   "symbol": "LTC",
+   "name": "Litecoin",
+   "coin-type": 2,
+   "network": "litecoin"
+  },
+  "near": {
+   "family": "ed25519",
+   "symbol": "NEAR",
+   "name": "NEAR",
+   "coin-type": 397,
+   "status": "planned",
+   "needs": "ed25519, implicit account = hex(pubkey)"
+  },
+  "optimism": {
+   "family": "evm",
+   "symbol": "ETH",
+   "name": "OP Mainnet",
+   "coin-type": 60,
+   "chain-id": 10
+  },
+  "polygon": {
+   "family": "evm",
+   "symbol": "POL",
+   "name": "Polygon PoS",
+   "coin-type": 60,
+   "chain-id": 137
+  },
+  "sol": {
+   "family": "ed25519",
+   "symbol": "SOL",
+   "name": "Solana",
+   "coin-type": 501,
+   "status": "planned",
+   "needs": "SLIP-0010 ed25519 derivation (m/44'/501'/…') + base58 pubkey-as-address"
+  },
+  "sui": {
+   "family": "ed25519",
+   "symbol": "SUI",
+   "name": "Sui",
+   "coin-type": 784,
+   "status": "planned",
+   "needs": "SLIP-0010 ed25519 + blake2b-256 address over flagged pubkey"
+  },
+  "ton": {
+   "family": "ed25519",
+   "symbol": "TON",
+   "name": "TON",
+   "coin-type": 607,
+   "status": "planned",
+   "needs": "ed25519 + TON wallet-contract address (workchain, stateInit hash)"
+  },
+  "trx": {
+   "family": "tron",
+   "symbol": "TRX",
+   "name": "TRON",
+   "coin-type": 195
+  },
+  "xmr": {
+   "family": "monero",
+   "symbol": "XMR",
+   "name": "Monero",
+   "coin-type": 128,
+   "status": "planned",
+   "needs": "CryptoNote dual-key (spend/view) + base58-monero — its own cryptosystem; use a reviewed impl"
+  },
+  "xrp": {
+   "family": "xrp",
+   "symbol": "XRP",
+   "name": "XRP Ledger",
+   "coin-type": 144,
+   "status": "planned",
+   "needs": "ripple base58 alphabet + hash160 account id (secp256k1 key reusable)"
+  }
+ }
+}

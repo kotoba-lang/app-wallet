@@ -1,0 +1,25 @@
+{
+  "name": "@kotoba-lang/app-wallet",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Kotoba Wallet — non-custodial multi-chain wallet app on kotoba-shell (iOS / Android / macOS)",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-web.mjs",
+    "test": "node --test test/*.test.js",
+    "oracle": "sh scripts/oracle.sh"
+  },
+  "dependencies": {
+    "@noble/ciphers": "0.5.3",
+    "@noble/curves": "1.4.0",
+    "@noble/hashes": "1.4.0",
+    "@scure/base": "1.1.6",
+    "@scure/bip32": "1.4.0",
+    "@scure/bip39": "1.3.0",
+    "qrcode-generator": "1.4.4"
+  },
+  "devDependencies": {
+    "esbuild": "0.21.5"
+  }
+}

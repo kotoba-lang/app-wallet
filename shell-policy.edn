@@ -1,0 +1,10 @@
+;; kotoba-shell bridge policy for Kotoba Wallet (pass with --policy).
+;; Least privilege: the vault goes to the OS keychain, addresses to the
+;; clipboard, balance/price/broadcast requests through http/fetch. No file
+;; system, no clipboard READ (a wallet that reads the clipboard is how
+;; address-swap malware gets a foothold), no notifications.
+{:allow ["keychain/read-text" "keychain/write-text" "keychain/delete"
+         "clipboard/write-text"
+         "http/fetch"]
+ :deny ["clipboard/read-text" "fs/read-text" "fs/write-text" "fs/append-text"]
+ :audit true}

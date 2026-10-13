@@ -1,0 +1,12 @@
+;; Kotoba Wallet — kotoba-shell app manifest.
+;; The UI is a web bundle (npm run build → web/dist) that kotoba-shell embeds
+;; and serves to WKWebView (iOS/macOS) and android.webkit.WebView (Android).
+;; Native capabilities are reached only through the bridge commands that
+;; shell-policy.edn allows.
+{:app/id "org.kotoba-lang.wallet"
+ :app/name "Kotoba Wallet"
+ :app/version "0.1.0"
+ :ios/bundle-id "org.kotoba-lang.wallet"
+ :android/application-id "org.kotoba_lang.wallet"
+ :macos/bundle-id "org.kotoba-lang.wallet"
+ :web/dist-dir "web/dist"}
