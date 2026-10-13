@@ -42,18 +42,20 @@ export function decimalsOf(chain) {
 }
 
 // ── transport ────────────────────────────────────────────────────────────
-async function request(url, { method = 'GET', body, headers = {} } = {}) {
+async function request(url, { method = 'GET', body, headers = {}, text = false } = {}) {
   const shell = globalThis.kotobaShell;
+  let status, payload;
   if (shell?.available) {
     const r = await shell.invoke('http/fetch', { url, method, headers, ...(body != null ? { body } : {}) });
     if (!r.ok) throw new Error(`${r.error}${r.detail ? ': ' + r.detail : ''}`);
-    const { status, body: text } = r.value;
-    if (status < 200 || status >= 300) throw new Error(`HTTP ${status} from ${new URL(url).host}`);
-    return JSON.parse(text);
+    ({ status, body: payload } = r.value);
+  } else {
+    const res = await fetch(url, { method, headers, body });
+    status = res.status; payload = await res.text();
   }
-  const res = await fetch(url, { method, headers, body });
-  if (!res.ok) throw new Error(`HTTP ${res.status} from ${new URL(url).host}`);
-  return res.json();
+  // node errors (e.g. "sendrawtransaction RPC error: …") are the useful part of a failed broadcast
+  if (status < 200 || status >= 300) throw new Error(`HTTP ${status} from ${new URL(url).host}${payload ? ': ' + String(payload).slice(0, 300) : ''}`);
+  return text ? String(payload).trim() : JSON.parse(payload);
 }
 
 let rpcId = 0;
@@ -118,3 +120,55 @@ export async function quoteEvmTransfer(chain, from, to, value) {
 }
 
 export const broadcastEvm = (chain, raw) => rpc(chain, 'eth_sendRawTransaction', [raw]);
+
+// ── UTXO send ────────────────────────────────────────────────────────────
+/** Spendable outputs of every address of `acct`, tagged with the input type. */
+export async function listUtxos(acct) {
+  const u = utxo[acct.chain];
+  const owned = [['p2wpkh', acct.p2wpkh], ['p2pkh', acct.p2pkh]].filter(([, a]) => a);
+  const out = [];
+  for (const [type, addr] of owned) {
+    if (u.kind === 'esplora') {
+      for (const x of await request(`${u.api}/address/${addr}/utxo`))
+        out.push({ txid: x.txid, vout: x.vout, value: BigInt(x.value), type, confirmed: !!x.status?.confirmed });
+    } else if (u.kind === 'blockcypher') {
+      const j = await request(`${u.api}/addrs/${addr}?unspentOnly=true&limit=200`);
+      for (const [x, confirmed] of [...(j.txrefs ?? []).map((x) => [x, true]), ...(j.unconfirmed_txrefs ?? []).map((x) => [x, false])])
+        out.push({ txid: x.tx_hash, vout: x.tx_output_n, value: BigInt(x.value), type, confirmed });
+    } else throw new Error(`no UTXO source for ${acct.chain}`);
+  }
+  return out;
+}
+
+/** Fee tiers in sat/vB: {fast, normal, slow}. */
+export async function feeRates(chain) {
+  const u = utxo[chain];
+  if (u.kind === 'esplora') {
+    const j = await request(`${u.api}/v1/fees/recommended`);
+    return { fast: j.fastestFee, normal: j.halfHourFee, slow: Math.max(j.hourFee, j.minimumFee) };
+  }
+  if (u.kind === 'blockcypher') {
+    const j = await request(u.api);
+    const vb = (k) => Math.ceil(j[k] / 1000);
+    return { fast: vb('high_fee_per_kb'), normal: vb('medium_fee_per_kb'), slow: vb('low_fee_per_kb') };
+  }
+  throw new Error(`no fee source for ${chain}`);
+}
+
+/** Broadcast a raw hex tx; returns the txid the node reports. */
+export async function broadcastUtxo(chain, rawHex) {
+  const u = utxo[chain];
+  if (u.kind === 'esplora')
+    return request(`${u.api}/tx`, { method: 'POST', headers: { 'content-type': 'text/plain' }, body: rawHex, text: true });
+  if (u.kind === 'blockcypher') {
+    const j = await request(`${u.api}/txs/push`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tx: rawHex }) });
+    return j.tx?.hash;
+  }
+  throw new Error(`no broadcast endpoint for ${chain}`);
+}
+
+export const txExplorerUrl = (chain, txid) =>
+  evm[chain] ? `${evm[chain].explorer}/tx/${txid}`
+    : chain === 'btc' ? `https://mempool.space/tx/${txid}`
+    : chain === 'ltc' ? `https://litecoinspace.org/tx/${txid}`
+    : chain === 'doge' ? `https://blockchair.com/dogecoin/transaction/${txid}` : '#';

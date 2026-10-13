@@ -14,7 +14,7 @@ const ja = {
   external: (o) => `${o} が担当`, receive: '受け取る', send: '送る', copy: 'コピー', copied: 'コピーしました',
   explorer: 'エクスプローラで見る', addresses: 'アドレス',
   sendUnsupported: (why) => `このチェーンの送金はまだ対応していません(${why})。受け取りは可能です。`,
-  utxoWhy: 'UTXO 選択と送信 API が未実装', tronWhy: 'TRON raw-data protobuf が未実装', receiveOnly: '受取専用',
+  bchWhy: 'BCH の署名方式 SIGHASH_FORKID が未実装', tronWhy: 'TRON raw-data protobuf が未実装', receiveOnly: '受取専用',
   to: '送金先アドレス', amount: '数量', review: '確認へ', badAddress: 'アドレスが正しくありません(EIP-55 チェックサム不一致を含む)',
   badAmount: '数量が正しくありません', reviewTitle: '送金内容の確認', network: 'ネットワーク', maxFee: '最大手数料',
   maxTotal: '最大合計', confirmPass: '署名のためパスコードを入力', signSend: '署名して送信', insufficient: '残高が足りません',
@@ -23,7 +23,12 @@ const ja = {
   resetConfirm: '削除するには DELETE と入力。フレーズが無いと資産は戻りません。',
   storage: ({ backend, note }) => `保存先: ${backend === 'keychain' ? 'OS のキーチェーン(暗号化済み)'
     : note === 'unsigned-build' ? 'アプリ内 localStorage(暗号化済み。未署名ビルドのためキーチェーン不可)' : 'ブラウザの localStorage(プレビュー用)'}`,
-  priceSource: '価格: CoinGecko', notFetched: '—', fetchFail: '取得できませんでした',
+  priceSource: '価格: CoinGecko',
+  badUtxoAddress: (n) => `${n} のアドレスではありません`,
+  sendMax: '全額を送る(手数料を差し引く)', feeSpeed: '手数料', feeTier: { fast: '速い', normal: '標準', slow: '安い' },
+  fee: '手数料', change: 'おつり(自分のアドレスへ)', inputs: '使う UTXO の数', dust: '金額が少なすぎます(ダスト制限未満)',
+  unconfirmedInputs: (n) => `未承認の入金 ${n} 件を使います。元の取引が承認されるまで、この送金も承認されません。`,
+  rbfNote: 'RBF 有効(sequence 0xfffffffd)。詰まったら手数料を上げて置き換えられます。', notFetched: '—', fetchFail: '取得できませんでした',
 };
 const en = {
   tagline: 'Multi-chain wallet. Keys never leave this device.',
@@ -41,7 +46,7 @@ const en = {
   external: (o) => `handled by ${o}`, receive: 'Receive', send: 'Send', copy: 'Copy', copied: 'Copied',
   explorer: 'View in explorer', addresses: 'Addresses',
   sendUnsupported: (why) => `Sending on this chain is not supported yet (${why}). Receiving works.`,
-  utxoWhy: 'UTXO selection and broadcast not implemented', tronWhy: 'TRON raw-data protobuf not implemented', receiveOnly: 'receive-only',
+  bchWhy: 'BCH SIGHASH_FORKID signing not implemented', tronWhy: 'TRON raw-data protobuf not implemented', receiveOnly: 'receive-only',
   to: 'Recipient address', amount: 'Amount', review: 'Review', badAddress: 'Invalid address (including EIP-55 checksum mismatch)',
   badAmount: 'Invalid amount', reviewTitle: 'Review transfer', network: 'Network', maxFee: 'Max fee',
   maxTotal: 'Max total', confirmPass: 'Enter passcode to sign', signSend: 'Sign and send', insufficient: 'Insufficient balance',
@@ -50,7 +55,12 @@ const en = {
   resetConfirm: 'Type DELETE to remove. Without the phrase, funds cannot be recovered.',
   storage: ({ backend, note }) => `Stored in: ${backend === 'keychain' ? 'OS keychain (encrypted)'
     : note === 'unsigned-build' ? 'app localStorage (encrypted; unsigned build has no keychain entitlement)' : 'browser localStorage (preview)'}`,
-  priceSource: 'Prices: CoinGecko', notFetched: '—', fetchFail: 'Could not fetch',
+  priceSource: 'Prices: CoinGecko',
+  badUtxoAddress: (n) => `Not a ${n} address`,
+  sendMax: 'Send everything (fee deducted)', feeSpeed: 'Fee', feeTier: { fast: 'Fast', normal: 'Normal', slow: 'Cheap' },
+  fee: 'Fee', change: 'Change (back to you)', inputs: 'UTXOs spent', dust: 'Amount below the dust limit',
+  unconfirmedInputs: (n) => `Spends ${n} unconfirmed output(s); this transfer cannot confirm before they do.`,
+  rbfNote: 'RBF enabled (sequence 0xfffffffd): a stuck transfer can be replaced with a higher fee.', notFetched: '—', fetchFail: 'Could not fetch',
 };
 export const lang = (globalThis.navigator?.language || 'ja').startsWith('ja') ? 'ja' : 'en';
 export const t = lang === 'ja' ? ja : en;

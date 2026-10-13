@@ -5,7 +5,7 @@
 ;; shell-policy.edn allows.
 {:app/id "org.kotoba-lang.wallet"
  :app/name "Kotoba Wallet"
- :app/version "0.1.0"
+ :app/version "0.2.0"
  :ios/bundle-id "org.kotoba-lang.wallet"
  :android/application-id "org.kotoba_lang.wallet"
  :macos/bundle-id "org.kotoba-lang.wallet"

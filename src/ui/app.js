@@ -9,6 +9,7 @@ import * as d from '../core/derive.js';
 import * as evm from '../core/evm.js';
 import * as ks from '../core/keystore.js';
 import * as net from '../core/networks.js';
+import * as utxo from '../core/utxo.js';
 import * as store from './store.js';
 import { t } from './i18n.js';
 
@@ -206,13 +207,13 @@ function asset(acct) {
   const primary = addrs[0];
   const toast = h('p', { class: 'toast', 'aria-live': 'polite' });
   const bal = state.balances[acct.chain];
-  const canSend = e.family === 'evm';
-  const why = e.family === 'tron' ? t.tronWhy : e['receive-only?'] ? t.receiveOnly : t.utxoWhy;
+  const canSend = e.family === 'evm' || (e.family === 'utxo' && !e['receive-only?']);
+  const why = e.family === 'tron' ? t.tronWhy : t.bchWhy;
   show(header(e.name, home), h('main', {},
     h('section', { class: 'hero' }, h('small', {}, e.symbol),
       h('div', { class: 'total' }, bal == null ? t.notFetched : evm.formatUnits(bal, net.decimalsOf(acct.chain))),
       fiatOf(acct.chain) != null ? h('small', {}, fmtFiat(fiatOf(acct.chain))) : null),
-    canSend ? h('button', { class: 'primary', onclick: () => sendForm(acct) }, t.send) : h('p', { class: 'muted' }, t.sendUnsupported(why)),
+    canSend ? h('button', { class: 'primary', onclick: () => (e.family === 'utxo' ? utxoSendForm(acct) : sendForm(acct)) }, t.send) : h('p', { class: 'muted' }, t.sendUnsupported(why)),
     h('h2', {}, t.receive), qrSvg(primary),
     h('h2', {}, t.addresses),
     h('ul', { class: 'list' }, addrs.map((a) => h('li', { class: 'addr' }, h('code', {}, a),
@@ -283,8 +284,85 @@ function review(acct, tx) {
 function sent(acct, hash) {
   show(header(t.sent), h('main', { class: 'center' },
     h('div', { class: 'logo ok' }, '✓'), h('p', {}, t.txHash), h('code', { class: 'wrap' }, hash),
-    h('a', { class: 'link', href: `${net.evm[acct.chain].explorer}/tx/${hash}`, target: '_blank', rel: 'noopener' }, t.explorer),
+    h('a', { class: 'link', href: net.txExplorerUrl(acct.chain, hash), target: '_blank', rel: 'noopener' }, t.explorer),
     h('button', { class: 'primary', onclick: () => { home(); refresh(); } }, t.done)));
+}
+
+// ── send (UTXO: BTC / LTC / DOGE) ──────────────────────────────────────────
+// Coin selection and the fee are computed from public data only; the key is
+// derived after the passcode on the review screen, and buildTransfer re-runs
+// the same deterministic selection over the same UTXO set before signing.
+function utxoSendForm(acct, draft = {}) {
+  const e = d.chains[acct.chain];
+  const dec = net.decimalsOf(acct.chain);
+  const to = h('input', { value: draft.to ?? '', ...latin, placeholder: `${(acct.p2wpkh ?? acct.p2pkh).slice(0, 4)}…` });
+  const amount = h('input', { value: draft.amount ?? '', inputmode: 'decimal', placeholder: '0.0' });
+  const max = h('input', { type: 'checkbox', checked: !!draft.max });
+  const tier = h('select', {}, ['fast', 'normal', 'slow'].map((k) => h('option', { value: k, selected: k === (draft.tier ?? 'normal') }, t.feeTier[k])));
+  const msg = h('div');
+  max.addEventListener('change', () => { amount.disabled = max.checked; });
+  amount.disabled = max.checked;
+  const btn = h('button', { class: 'primary', onclick: async () => {
+    const dest = to.value.trim();
+    try { utxo.addressToScript(acct.chain, dest); } catch (x) { return msg.replaceChildren(err(`${t.badUtxoAddress(d.chains[acct.chain].name)} (${x.message})`)); }
+    let value = 0n;
+    if (!max.checked) { try { value = evm.parseUnits(amount.value, dec); if (value <= 0n) throw 0; } catch { return msg.replaceChildren(err(t.badAmount)); } }
+    busy(btn, true);
+    try {
+      const [utxos, rates] = await Promise.all([net.listUtxos(acct), net.feeRates(acct.chain)]);
+      const n = utxo.netOf(acct.chain);
+      let feeRate = rates[tier.value];
+      if (n.minFeePerVb) feeRate = Math.max(feeRate, n.minFeePerVb);
+      const dt = utxo.addressToScript(acct.chain, dest).type;
+      const ct = utxo.addressToScript(acct.chain, acct.p2wpkh ?? acct.p2pkh).type;
+      const sel = utxo.selectCoins({ utxos, amount: value, feeRate, toType: dt, changeType: ct, dust: n.dust, max: max.checked });
+      utxoReview(acct, { to: dest, amount: amount.value, max: max.checked, tier: tier.value, feeRate, utxos, sel });
+    } catch (x) {
+      msg.replaceChildren(err(x.data?.reason === 'insufficient' ? t.insufficient : x.data?.reason === 'dust' ? t.dust : x.message));
+      busy(btn, false);
+    }
+  } }, t.review);
+  show(header(`${t.send} ${e.symbol}`, () => asset(acct)), h('main', {},
+    h('p', { class: 'muted' }, `${t.network}: ${e.name}`),
+    h('label', { class: 'field' }, t.to, to), h('label', { class: 'field' }, `${t.amount} (${e.symbol})`, amount),
+    h('label', { class: 'check' }, max, t.sendMax),
+    h('label', { class: 'field' }, t.feeSpeed, tier), msg, btn));
+}
+
+function utxoReview(acct, d0) {
+  const e = d.chains[acct.chain];
+  const dec = net.decimalsOf(acct.chain);
+  const fmt = (v) => `${evm.formatUnits(v, dec, 8)} ${e.symbol}`;
+  const { sel } = d0;
+  const p = h('input', { type: 'password', autocomplete: 'current-password' });
+  const msg = h('div');
+  const btn = h('button', { class: 'danger', onclick: async () => {
+    busy(btn, true);
+    try {
+      const built = await withSecret(p.value, (mnemonic) => {
+        const r = d.rootFromMnemonic(mnemonic);
+        const fresh = d.account(r, acct.chain);
+        if (d.addressesOf(fresh).join() !== d.addressesOf(acct).join()) throw new Error('account mismatch');
+        return utxo.buildTransfer({ chain: acct.chain, acct: fresh, utxos: d0.utxos, to: d0.to, amount: sel.amount,
+          feeRate: d0.feeRate, max: d0.max, privateKey: d.nodeFor(r, fresh).privateKey });
+      });
+      if (built.fee !== sel.fee || built.amount !== sel.amount) throw new Error('transaction changed between review and signing');
+      const txid = await net.broadcastUtxo(acct.chain, built.raw);
+      sent(acct, txid || built.txid);
+    } catch (x) { msg.replaceChildren(err(x instanceof ks.WrongPasscode ? t.wrongPass : x.message)); busy(btn, false); }
+  } }, t.signSend);
+  const kv = (k, v) => h('div', { class: 'kv' }, h('span', {}, k), h('b', {}, v));
+  const unconfirmed = sel.inputs.filter((u) => !u.confirmed).length;
+  show(header(t.reviewTitle, () => utxoSendForm(acct, d0)), h('main', {},
+    h('section', { class: 'card' },
+      kv(t.network, e.name), kv(t.to, d0.to), kv(t.amount, fmt(sel.amount)),
+      kv(t.fee, `${fmt(sel.fee)} (${d0.feeRate} sat/vB · ~${sel.vsize} vB)`),
+      sel.change > 0n ? kv(t.change, fmt(sel.change)) : null,
+      kv(t.inputs, String(sel.inputs.length)), kv(t.maxTotal, fmt(sel.amount + sel.fee))),
+    unconfirmed ? h('p', { class: 'warn' }, t.unconfirmedInputs(unconfirmed)) : null,
+    h('p', { class: 'muted tiny' }, t.rbfNote),
+    h('label', { class: 'field' }, t.confirmPass, p), msg, btn,
+    h('button', { class: 'secondary', onclick: () => asset(acct) }, t.cancel)));
 }
 
 // ── settings ───────────────────────────────────────────────────────────────
@@ -311,7 +389,7 @@ function settings() {
         await store.deleteVault(); Object.assign(state, { vault: null, accounts: null, balances: {} }); welcome();
       } }, t.reset)),
     h('p', { class: 'muted tiny' }, t.storage(store.vaultBackend())),
-    h('p', { class: 'muted tiny' }, 'Kotoba Wallet 0.1.0 · kotoba-lang/wallet · kotoba-shell')));
+    h('p', { class: 'muted tiny' }, 'Kotoba Wallet 0.2.0 · kotoba-lang/wallet · kotoba-shell')));
 }
 
 function lock() { state.accounts = null; state.balances = {}; unlock(); }

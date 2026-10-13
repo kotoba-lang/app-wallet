@@ -55,23 +55,42 @@ CSP は `script-src 'self'`、`object-src 'none'`、`connect-src https:`。
 - 法定通貨: CoinGecko simple price。JPY / USD / EUR / GBP / CNY / KRW。
 - 外部 API に渡るのはアドレスだけ。鍵もニーモニックも渡らない。
 
-### 5. 送金は EVM のみ (v0.1)
+### 5. 送金: EVM (v0.1) と UTXO (v0.2)
 
-EIP-1559。nonce は `pending`、`maxFee = 2·baseFee + tip`、gas は `eth_estimateGas` で決める。確認画面に
-最大手数料と最大合計を出す。chain-id はレジストリから注入し、不一致なら拒否する。宛先は EIP-55
-チェックサムで検証する。UTXO と TRON の送金は **理由を表示して非対応にした**
-(UTXO 選択と broadcast が未実装、TRON raw-data protobuf が未実装)。
+**EVM**: EIP-1559。nonce は `pending`、`maxFee = 2·baseFee + tip`、gas は `eth_estimateGas` で決める。
+chain-id はレジストリから注入し、不一致なら拒否する。宛先は EIP-55 で検証する。
+
+**UTXO (BTC / LTC / DOGE)** — `src/core/utxo.js`。ライブラリと同じ範囲に限定する:
+- 使える入力は自分の P2WPKH (BIP-143 SIGHASH_ALL) と P2PKH (legacy SIGHASH_ALL) だけ。
+  署名は RFC-6979 で、low-S の DER に 0x01 を付ける。
+- 送金先: P2PKH / P2SH / P2WPKH / P2WSH / P2TR (bech32m)。別ネットワークのアドレスは拒否する。
+- コイン選択は大きい順。おつりがダスト未満になる場合はおつり出力を作らず、手数料に回す。
+  全額送金 (fee を差し引く) にも対応。
+- DOGE はダスト制限と最低手数料がどちらも 0.01 DOGE (手数料は /kB あたり、Dogecoin Core 1.14.6+) なので、手数料率に下限を設ける。
+- sequence = 0xfffffffd (RBF 有効)、version 2、locktime 0。
+- 未承認の入力を使うときは警告する。
+- データ源: esplora (`/address/:a/utxo`, `/v1/fees/recommended`, `POST /tx`) と blockcypher (DOGE)。
+- レビュー時のコイン選択には公開データしか使わない。署名時は同じ UTXO 集合で選択をやり直し、
+  手数料か金額がレビューと違っていたら送信しない。
+- **BCH は送金不可のまま**。SIGHASH_FORKID が未実装で、ライブラリも拒否している。
+
+検証は 2 系統で行う: 入力ごとの署名は wallet ライブラリ (oracle) と**バイト一致**し、組み立てた tx 全体
+(raw / txid / vsize) は独立実装の `@scure/btc-signer` と一致する。
+
+TRON の送金は非対応のまま (raw-data protobuf が未実装)。
 
 ## 検証 (2026-10-13)
 
-- `npm test`: 30/30 pass (oracle パリティ、拒否、EIP-55、単位、vault)。
+- `npm test`: 42/42 pass (EVM / UTXO の oracle パリティ、btc-signer との一致、アドレスのネットワーク判定、コイン選択、拒否、vault)。
+- UTXO の UI 経路 (ブラウザ): UTXO 応答だけをダミーに差し替え、レビュー → 署名まで実行した。送信内容は手元で横取りし、外部には出していない。
+  横取りした tx を btc-signer で decode し、BIP-143 署名が独立に検証できることを確認した。
 - ブラウザ (localhost): 復元 → 残高 / 価格 → 受取 QR → 送金フォームの検証まで。
 - iOS 26.5 Simulator: `scripts/build-app.sh ios` → 復元 → 残高 / 価格 (bridge http/fetch) → BTC の受取アドレスが
   oracle と一致 (`bc1qmxrw6…kmp8m` / `1LqBGS…WeabA`)。
 - Android (API 34 image emulator): `scripts/build-app.sh android` (JDK 21) → 復元 → 残高 → Settings に
   「OS keychain」と表示。
 
-**未検証**: 実資金での EVM 送金と broadcast (署名バイトは oracle で一致を確認済み)。App Store / Play への提出
+**未検証**: 実資金での EVM / UTXO 送金と broadcast、iOS / Android 実機上での UTXO 送金 (署名バイトは oracle で一致を確認済み)。App Store / Play への提出
 (署名 identity と store アカウントが必要)。
 
 ## 発見した shell 側の制約 (アプリ側で回避済み)
