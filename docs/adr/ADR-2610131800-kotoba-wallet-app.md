@@ -111,10 +111,14 @@ inga は残高を持つチェーンではない。順序付けるのは head rec
   シミュレータのアプリから bridge http/fetch 経由で ref を書き込んだ → 4 witness すべてで確定 (proof 付き)。
   確定した記録を real `inga.writer` に渡すと受理され、cid を変えたコピーは `bad-signature` になった。
 
-既知の制約 (inga 側):
-- inga-node は `inga.writer` のポリシーをまだ適用していない (`/submit` が要求するのは ref と cid だけ)。
-  署名はポリシーを適用する読み手が検証できるが、ノード自身は未署名の記録も受け付ける。
-- inga-node は CORS ヘッダを返さない。ネイティブアプリ (bridge) からは届くが、ブラウザ版からは届かない。
+inga 側との関係 (2026-10-13 に訂正):
+- 書き込み権限: inga-node main は `INGA_WRITER_POLICY` で `inga.writer` を既に適用している (#9、10/7 マージ)。
+  最初の調査が「未適用」としたのは、古いローカル checkout (`2fdf886`) を見ていたため。署名形式
+  (base64 Ed25519 over signing-text、did:key 0xed01) はこのドライバと一致する。policy を有効にした
+  4 witness の devnet で確認: 署名無しの記録と、policy に無い did:key が正しく署名した記録は、どちらも
+  block には入るが head にはならない。このウォレットの記録は同じ seq 0 を取得した。
+- CORS: inga-node は CORS ヘッダを返さず、ブラウザ版はノードを読めなかった。kotoba-lang/inga-node#11 で
+  `INGA_CORS_ORIGINS` (opt-in) を追加し、ブラウザ版から `/health` の読み取りと ref の確定まで確認した。
 
 ## 検証 (2026-10-13)
 

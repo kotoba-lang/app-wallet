@@ -12,7 +12,7 @@ Kotoba Wallet は [kotoba-lang/shell](https://github.com/kotoba-lang/shell) 上�
 - **法定通貨表示**: JPY / USD / EUR / GBP / CNY / KRW (CoinGecko)
 - **受取**: QR とアドレスのコピー
 - **送金**: EVM 7 チェーン (EIP-1559) と BTC / LTC / DOGE (P2WPKH・P2PKH の UTXO、RBF、全額送金、手数料 3 段階)。BCH と TRX は受け取りのみ
-- **Kotoba L1 (inga)**: 同じ seed から作る Ed25519 did:key で、ref の記録 (`inga.ref-record/v2`) に署名し inga-node へ提出します。inga に残高の概念は無いので、ここで持つのは書き込み権限です
+- **Kotoba L1 (inga)**: 同じ seed から作る Ed25519 did:key で、ref の記録 (`inga.ref-record/v2`) に署名し inga-node へ提出します。inga に残高の概念は無いので、ここで持つのは書き込み権限です。ノードで `INGA_WRITER_POLICY` に did:key を登録すると、その ref はこの ID だけが進められます。ブラウザ版から使う場合は `INGA_CORS_ORIGINS` も設定してください
 - **鍵**: ニーモニックはパスコードで暗号化し (PBKDF2 + AES-256-GCM)、OS キーチェーンに保存します。ロック解除中にメモリに置くのは公開アカウントだけです。
 
 設計: [docs/adr/ADR-2610131800-kotoba-wallet-app.md](docs/adr/ADR-2610131800-kotoba-wallet-app.md)
