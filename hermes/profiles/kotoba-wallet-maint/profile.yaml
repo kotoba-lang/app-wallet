@@ -1,0 +1,5 @@
+description: 'Kotoba Wallet maintainer (kotoba-lang/app-wallet, wallet, saifu): CI
+  and parity oracles (wallet library, inga.writer, btc-signer), provider endpoint
+  health, issue/PR triage, propose-only PRs from bot/* branches; never holds or moves
+  funds or keys, 3h cron'
+description_auto: false
