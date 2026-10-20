@@ -1,0 +1,102 @@
+(ns wallet.judgment
+  "Kotoba Wallet 判定コア — itonami dapp bundle（pure, :effects #{}）。
+
+  「どのチェーンに何ができるか」の判定（導出可否・送金可否・受取専用）。
+  正本は src/core/chains.json（チェーン表）と src/ui/app.js の送金述語
+  （canSend = family が evm、または utxo で receive-only でない）。
+  鍵導出・署名・ネットワークはこの guest の外。
+
+  family コード（src/core/chains.json の family 値に対応）:
+    0 evm / 1 utxo / 2 tron（supported 12）/ 3 cardano / 4 cosmos / 5 monero
+    / 6 substrate / 7 xrp / 8 ed25519（準備中の 10）/ 9 unknown
+  （chains.json の family 値に対応。supported 12 チェーンは evm/utxo/tron、
+  準備中は残りの family — 導出は拒否するが理由の文言は UI 側）
+
+  chain-status の戻り:
+    0 = 送受可 / 1 = 受取専用（送金不可）/ 2 = 準備中（導出拒否）/ 3 = unknown
+  transfer-judgment のエラービット（0 = 実行可。fail closed）:
+    1 :unknown-family / 2 :preparing / 4 :send-refused / 8 :bad-amount
+
+  実行 host はスカラーのみ = KIR v3 / i64/direct ABI（kernel/selfhost 両対応）。
+
+  テストはゼロ引数 test-*、戻り 1/0:
+  <amu> test aiueos/wallet_judgment.cljk"
+  (:export [main chain-status can-send can-derive transfer-judgment
+            test-evm test-utxo test-receive-only test-tron test-preparing
+            test-unknown test-transfer test-transfer-amount test-derive]))
+
+(defn main [] :i64
+  0)
+
+(defn- known-family [family :i64] :i64
+  (if (and (>= family 0) (<= family 8)) 1 0))
+
+(defn- preparing-family [family :i64] :i64
+  ;; cardano/cosmos/monero/substrate/xrp/ed25519: 準備中（導出拒否）
+  (if (and (>= family 3) (<= family 8)) 1 0))
+
+(defn chain-status [family :i64 receive-only :i64] :i64
+  (if (= (known-family family) 0)
+    3
+    (if (= (preparing-family family) 1)
+      2
+      (if (or (= family 0)
+              (and (= family 1) (= receive-only 0)))
+        0
+        1))))
+
+(defn can-send [family :i64 receive-only :i64] :i64
+  ;; src/ui/app.js の述語そのもの
+  (if (or (= family 0)
+          (and (= family 1) (= receive-only 0)))
+    1
+    0))
+
+(defn can-derive [family :i64] :i64
+  (if (and (= (known-family family) 1) (= (preparing-family family) 0)) 1 0))
+
+(defn transfer-judgment [family :i64 receive-only :i64 amount :i64] :i64
+  ;; ビットは排他的な分類 + 金額（送金不可の理由は unknown / preparing /
+  ;; receive-only のどれか 1 つに落ちる）
+  (if (= (known-family family) 0)
+    (+ 1 (if (> amount 0) 0 8))
+    (if (= (preparing-family family) 1)
+      (+ 2 (if (> amount 0) 0 8))
+      (if (= (can-send family receive-only) 0)
+        (+ 4 (if (> amount 0) 0 8))
+        (if (> amount 0) 0 8)))))
+
+;; --- tests（戻り 1 = pass） ------------------------------------------------
+
+(defn test-evm [] :i64
+  (if (and (= (chain-status 0 0) 0) (= (can-send 0 0) 1) (= (can-derive 0) 1)) 1 0))
+
+(defn test-utxo [] :i64
+  (if (and (= (chain-status 1 0) 0) (= (can-send 1 0) 1)) 1 0))
+
+(defn test-receive-only [] :i64
+  ;; BCH（utxo + receive-only）: 受取専用・送金不可・導出は可
+  (if (and (= (chain-status 1 1) 1) (= (can-send 1 1) 0) (= (can-derive 1) 1)) 1 0))
+
+(defn test-tron [] :i64
+  ;; TRX: family tron は受取専用扱い（送金述語が通らない）
+  (if (and (= (chain-status 2 0) 1) (= (can-send 2 0) 0) (= (can-derive 2) 1)) 1 0))
+
+(defn test-preparing [] :i64
+  (if (and (= (chain-status 3 0) 2) (= (can-derive 3) 0) (= (can-send 3 0) 0)) 1 0))
+
+(defn test-unknown [] :i64
+  (if (and (= (chain-status 9 0) 3) (= (can-derive 9) 0)) 1 0))
+
+(defn test-transfer [] :i64
+  (if (= (transfer-judgment 0 0 100) 0) 1 0))
+
+(defn test-transfer-amount [] :i64
+  ;; 金額 0 は拒否（8）、receive-only への送金は 4、準備中は 2、unknown は 1
+  (if (= (+ (transfer-judgment 0 0 0) (transfer-judgment 1 1 100)
+            (transfer-judgment 3 0 100) (transfer-judgment 9 0 100))
+         15)
+    1 0))
+
+(defn test-derive [] :i64
+  (if (= (+ (can-derive 0) (can-derive 1) (can-derive 2) (can-derive 3) (can-derive 8) (can-derive 9)) 3) 1 0))
