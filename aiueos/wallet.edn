@@ -1,0 +1,21 @@
+;; Kotoba Wallet — itonami（dapp）の aiueos アプリ記述子（notes.edn 形）。
+;; 判定コアは aiueos/wallet_judgment.cljk（チェーン別の導出・送金可否）。
+;; 正本は src/core/chains.json と src/ui/app.js の送金述語。鍵導出・署名・
+;; ネットワークはホスト層（kotoba-lang/wallet とバイト一致の検査は既存の
+;; npm test 側）。この guest 自体は pure（:effects #{}）。
+;; 実行 host はスカラーのみ = KIR v3 / i64/direct ABI（kernel/selfhost 両対応）。
+{:aiueos/component :app/wallet
+ :aiueos/kind :app
+ :aiueos/trust :untrusted
+ :aiueos/source "wallet_judgment.cljk"
+ :aiueos/wasm "wallet_judgment.wasm"
+ :aiueos/entry "main"
+ :aiueos/args []
+ :aiueos/imports #{}
+ :aiueos/exports #{:app/main
+                   :app/chain-status
+                   :app/can-send
+                   :app/can-derive
+                   :app/transfer-judgment}
+ :aiueos/effects #{}
+ :aiueos/limits {:memory-pages 16 :fuel 5000000}}
